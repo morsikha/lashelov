@@ -35,13 +35,11 @@ def keep_alive():
 fish_list = ["карась", "лещ", "плотва", "тунец", "акула"]
 
 def get_fish_rates():
-    """Функция для генерации случайных "курсов" рыбы к гривне."""
     rates = {fish: round(random.uniform(10, 1000), 2) for fish in fish_list}
     rate_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
     return f"🐟 Текущие курсы рыбешки:\n\n{rate_message}"
 
 def get_bitcoin_rate():
-    """Функция для получения курса биткоина в долларах."""
     url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
     response = requests.get(url)
     if response.status_code == 200:
@@ -52,7 +50,6 @@ def get_bitcoin_rate():
         return "Не удалось получить курс биткоина."
 
 def get_ukrainian_joke():
-    """Функция для получения случайного анекдота с сайта."""
     url = "https://rozdil.lviv.ua/anekdot/"
     response = requests.get(url)
 
@@ -68,7 +65,6 @@ def get_ukrainian_joke():
         return "Не удалось получить анекдоты. Попробуйте позже."
 
 def get_random_meme():
-    """Функция для получения случайного мема из API Imgflip."""
     url = "https://api.imgflip.com/get_memes"
     response = requests.get(url)
     data = response.json()
@@ -80,19 +76,20 @@ def get_random_meme():
         return "Не удалось получить мем."
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Функция, вызываемая при любом текстовом сообщении."""
     user_message = update.message.text.lower()
 
-    if "курс" in user_message:
+    if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
+        await update.message.reply_text("задрот")
+    elif "курс" in user_message:
         rates_message = get_fish_rates()
         await update.message.reply_text(rates_message)
     elif "биток" in user_message:
         btc_message = get_bitcoin_rate()
         await update.message.reply_text(btc_message)
-    elif "анекдот" in user_message:  # Команда "анекдот"
+    elif "анекдот" in user_message:
         joke_message = get_ukrainian_joke()
         await update.message.reply_text(joke_message)
-    elif "мем" in user_message:  # Команда "мем"
+    elif "мем" in user_message:
         meme_url = get_random_meme()
         if meme_url != "Не удалось получить мем.":
             await update.message.reply_photo(meme_url)
@@ -100,7 +97,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(meme_url)
 
 async def error_handler(update, context):
-    """Обработчик ошибок."""
     logger.error(f"Произошла ошибка: {context.error}")
 
 def main():
@@ -110,11 +106,9 @@ def main():
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
-    # Обработчик ошибок
     app.add_error_handler(error_handler)
-
     app.run_polling()
 
 if __name__ == '__main__':
-    keep_alive()  # Запуск веб-сервера для поддержания активности
-    main()        # Запуск бота
+    keep_alive()
+    main()
