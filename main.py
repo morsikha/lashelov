@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import random
 import requests
 import logging
@@ -8,19 +10,19 @@ from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
 
-# Вставьте ваш токен бота напрямую здесь
-TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Замените на ваш токен
+# Р’СЃС‚Р°РІСЊС‚Рµ РІР°С€ С‚РѕРєРµРЅ Р±РѕС‚Р° РЅР°РїСЂСЏРјСѓСЋ Р·РґРµСЃСЊ
+TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Р—Р°РјРµРЅРёС‚Рµ РЅР° РІР°С€ С‚РѕРєРµРЅ
 
-# Логгирование ошибок
+# Р›РѕРіРіРёСЂРѕРІР°РЅРёРµ РѕС€РёР±РѕРє
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Настройка веб-сервера для поддержания активности
+# РќР°СЃС‚СЂРѕР№РєР° РІРµР±-СЃРµСЂРІРµСЂР° РґР»СЏ РїРѕРґРґРµСЂР¶Р°РЅРёСЏ Р°РєС‚РёРІРЅРѕСЃС‚Рё
 app = Flask('')
 
 @app.route('/')
 def home():
-    return "Бот работает!"
+    return "Р‘РѕС‚ СЂР°Р±РѕС‚Р°РµС‚!"
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -29,45 +31,44 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# Список с рыбой и её случайными "курсами"
-fish_list = ["карась", "лещ", "плотва", "тунец", "акула"]
+# РЎРїРёСЃРѕРє СЃ СЂС‹Р±РѕР№ Рё РµС‘ СЃР»СѓС‡Р°Р№РЅС‹РјРё "РєСѓСЂСЃР°РјРё"
+fish_list = ["РєР°СЂР°СЃСЊ", "Р»РµС‰", "РїР»РѕС‚РІР°", "С‚СѓРЅРµС†", "Р°РєСѓР»Р°"]
 
 def get_fish_rates():
-    """Функция для генерации случайных "курсов" рыбы к гривне."""
+    """Р¤СѓРЅРєС†РёСЏ РґР»СЏ РіРµРЅРµСЂР°С†РёРё СЃР»СѓС‡Р°Р№РЅС‹С… "РєСѓСЂСЃРѕРІ" СЂС‹Р±С‹ Рє РіСЂРёРІРЅРµ."""
     rates = {fish: round(random.uniform(10, 1000), 2) for fish in fish_list}
-    rate_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
-    return f"?? Текущие курсы рыбешки:\n\n{rate_message}"
+    rate_message = "\n".join([f"{fish.capitalize()}: {rate} РіСЂРЅ" for fish, rate in rates.items()])
+    return f"рџђџ РўРµРєСѓС‰РёРµ РєСѓСЂСЃС‹ СЂС‹Р±РµС€РєРё:\n\n{rate_message}"
 
 def get_bitcoin_rate():
-    """Функция для получения курса биткоина в долларах."""
+    """Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ РєСѓСЂСЃР° Р±РёС‚РєРѕРёРЅР° РІ РґРѕР»Р»Р°СЂР°С…."""
     url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
     response = requests.get(url)
     if response.status_code == 200:
         data = response.json()
         btc_price = data["bitcoin"]["usd"]
-        return f"?? Курс биткоина: ${btc_price} USD"
+        return f"рџ’° РљСѓСЂСЃ Р±РёС‚РєРѕРёРЅР°: ${btc_price} USD"
     else:
-        return "Не удалось получить курс биткоина."
+        return "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РєСѓСЂСЃ Р±РёС‚РєРѕРёРЅР°."
 
 def get_ukrainian_joke():
-    """Функция для получения случайного анекдота с сайта."""
+    """Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ СЃР»СѓС‡Р°Р№РЅРѕРіРѕ Р°РЅРµРєРґРѕС‚Р° СЃ СЃР°Р№С‚Р°."""
     url = "https://rozdil.lviv.ua/anekdot/"
     response = requests.get(url)
 
     if response.status_code == 200:
         soup = BeautifulSoup(response.content, "html.parser")
-        # Извлекаем анекдоты, используя класс "hoveranek black"
         jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
 
         if jokes:
             return random.choice(jokes)
         else:
-            return "Не удалось найти анекдоты на странице."
+            return "РќРµ СѓРґР°Р»РѕСЃСЊ РЅР°Р№С‚Рё Р°РЅРµРєРґРѕС‚С‹ РЅР° СЃС‚СЂР°РЅРёС†Рµ."
     else:
-        return "Не удалось получить анекдоты. Попробуйте позже."
+        return "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ Р°РЅРµРєРґРѕС‚С‹. РџРѕРїСЂРѕР±СѓР№С‚Рµ РїРѕР·Р¶Рµ."
 
 def get_random_meme():
-    """Функция для получения случайного мема из API Imgflip."""
+    """Р¤СѓРЅРєС†РёСЏ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ СЃР»СѓС‡Р°Р№РЅРѕРіРѕ РјРµРјР° РёР· API Imgflip."""
     url = "https://api.imgflip.com/get_memes"
     response = requests.get(url)
     data = response.json()
@@ -76,44 +77,44 @@ def get_random_meme():
         meme = random.choice(memes)
         return meme["url"]
     else:
-        return "Не удалось получить мем."
+        return "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РјРµРј."
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Функция, вызываемая при любом текстовом сообщении."""
+    """Р¤СѓРЅРєС†РёСЏ, РІС‹Р·С‹РІР°РµРјР°СЏ РїСЂРё Р»СЋР±РѕРј С‚РµРєСЃС‚РѕРІРѕРј СЃРѕРѕР±С‰РµРЅРёРё."""
     user_message = update.message.text.lower()
 
-    if "курс" in user_message:
+    if "РєСѓСЂСЃ" in user_message:
         rates_message = get_fish_rates()
         await update.message.reply_text(rates_message)
-    elif "биток" in user_message:
+    elif "Р±РёС‚РѕРє" in user_message:
         btc_message = get_bitcoin_rate()
         await update.message.reply_text(btc_message)
-    elif "анекдот" in user_message:  # Команда "анекдот"
+    elif "Р°РЅРµРєРґРѕС‚" in user_message:  # РљРѕРјР°РЅРґР° "Р°РЅРµРєРґРѕС‚"
         joke_message = get_ukrainian_joke()
         await update.message.reply_text(joke_message)
-    elif "мем" in user_message:  # Команда "мем"
+    elif "РјРµРј" in user_message:  # РљРѕРјР°РЅРґР° "РјРµРј"
         meme_url = get_random_meme()
-        if meme_url != "Не удалось получить мем.":
+        if meme_url != "РќРµ СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ РјРµРј.":
             await update.message.reply_photo(meme_url)
         else:
             await update.message.reply_text(meme_url)
 
 async def error_handler(update, context):
-    """Обработчик ошибок."""
-    logger.error(f"Произошла ошибка: {context.error}")
+    """РћР±СЂР°Р±РѕС‚С‡РёРє РѕС€РёР±РѕРє."""
+    logger.error(f"РџСЂРѕРёР·РѕС€Р»Р° РѕС€РёР±РєР°: {context.error}")
 
 def main():
-    print("Запуск бота...")
+    print("Р—Р°РїСѓСЃРє Р±РѕС‚Р°...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
-    # Обработчик ошибок
+    # РћР±СЂР°Р±РѕС‚С‡РёРє РѕС€РёР±РѕРє
     app.add_error_handler(error_handler)
 
     app.run_polling()
 
 if __name__ == '__main__':
-    keep_alive()  # Запуск веб-сервера для поддержания активности
-    main()        # Запуск бота
+    keep_alive()  # Р—Р°РїСѓСЃРє РІРµР±-СЃРµСЂРІРµСЂР° РґР»СЏ РїРѕРґРґРµСЂР¶Р°РЅРёСЏ Р°РєС‚РёРІРЅРѕСЃС‚Рё
+    main()        # Р—Р°РїСѓСЃРє Р±РѕС‚Р°
