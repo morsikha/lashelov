@@ -178,6 +178,15 @@ def main():
     t = Thread(target=start_scheduler, args=(chat_id,))
     t.start()
     
+    # Функция для отладки
+async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Выводит информацию о сообщении для отладки."""
+    logger.info(f"Отладочное сообщение: {update}")
+    user_message = update.message.text.lower()  # Текст сообщения
+    logger.info(f"Получено сообщение: {user_message}")
+    # Вы можете сделать другие действия по отладке, например, ответить на сообщение
+    await context.bot.send_message(update.effective_chat.id, text="Сообщение получено и обработано.")
+
  # Добавление обработчика для отладки
     debug_handler = MessageHandler(filters.ALL, debug_update)
     app.add_handler(debug_handler)
