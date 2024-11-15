@@ -180,7 +180,10 @@ def main():
     # Для планировщика запускаем в отдельном потоке
     t = Thread(target=start_scheduler, args=(bot,))
     t.start()
-
+    
+    # Подключение обработчика текстовых сообщений
+    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    app.add_handler(text_handler)
     keep_alive()
     app.run_polling()
 
