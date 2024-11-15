@@ -94,7 +94,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
     user_message = update.message.text.lower()
 
-    if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
+    if any(word in user_message for word in ["кс", "cs", "катка", "катку", "каточку"]):
         await update.message.reply_text("задрот")
     elif "курс" in user_message:
         rates_message = get_fish_rates()
