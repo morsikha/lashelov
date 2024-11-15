@@ -46,7 +46,7 @@ def check_kyiv_alert():
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            kyiv_status = soup.find('div', class_='Kyiv')  # Обновите класс или ID, если он изменится
+            kyiv_status = soup.find('div', class_='Kyiv')  # Убедитесь, что это правильный селектор
             if kyiv_status and 'Тривога' in kyiv_status.text:
                 return True
         return False
@@ -97,7 +97,6 @@ def get_bitcoin_rate():
         return "Не удалось получить курс биткоина."
 
 def get_meme():
-    # URL мемов
     return "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
 
 def get_ukrainian_joke():
@@ -115,56 +114,33 @@ def get_ukrainian_joke():
     else:
         return "Не удалось получить анекдоты. Попробуйте позже."
 
-# Глобальный словарь для подсчёта команд от пользователей
-user_commands_count = {}
-
+# Обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
-    user_id = update.effective_user.id  # ID пользователя
-    chat_id = update.effective_chat.id  # ID чата
-    user_message = update.message.text.lower()  # Текст сообщения в нижнем регистре
+    chat_id = update.effective_chat.id
+    user_message = update.message.text.lower()
 
-    # Логируем входящее сообщение
-    logger.info(f"Сообщение от {update.effective_user.username} ({user_id}): {user_message}")
+    logger.info(f"Получено сообщение: {user_message} от {update.effective_user.username}")
 
-    # Инициализация счётчика для нового пользователя
-    if user_id not in user_commands_count:
-        user_commands_count[user_id] = 0
-
-    # Если сообщение содержит ключевые команды, увеличиваем счётчик
-    if any(cmd in user_message for cmd in ["курс", "биток", "анекдот", "мем"]):
-        user_commands_count[user_id] += 1
-        logger.info(f"Пользователь {user_id} отправил {user_commands_count[user_id]} команд(ы).")
-
-        # Проверка лимита использования команд
-        if user_commands_count[user_id] >= 3:
-            await context.bot.send_message(chat_id=chat_id, text="Вы очманели, я устал! Иди ловить ляща!")
-            return  # Прекращаем обработку команды, если превышен лимит
-
-    # Реакция на команды
     if "курс" in user_message:
         rates_message = get_fish_rates()
         await context.bot.send_message(chat_id=chat_id, text=rates_message)
-
     elif "биток" in user_message:
         btc_message = get_bitcoin_rate()
         await context.bot.send_message(chat_id=chat_id, text=btc_message)
-
     elif "мем" in user_message:
         meme_url = get_meme()
         await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
-
     elif "анекдот" in user_message:
         joke_message = get_ukrainian_joke()
         await context.bot.send_message(chat_id=chat_id, text=joke_message)
-
     elif "тревога" in user_message:
         is_alert = check_kyiv_alert()
         if is_alert:
             await context.bot.send_message(chat_id=chat_id, text="🔴 В Киеве тревога! Будьте осторожны!")
         else:
             await context.bot.send_message(chat_id=chat_id, text="✅ В Киеве всё спокойно.")
-
+    
     # Дополнительные реакции
     if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
         await context.bot.send_message(chat_id=chat_id, text="задрот")
@@ -173,14 +149,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("Запуск бота...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
-    
-    # Для планировщика запускаем в отдельном потоке
-    t = Thread(target=start_scheduler, args=(bot,))
-    t.start()
-    
-    # Подключение обработчика текстовых сообщений
+
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
+
+    # Для планировщика запускаем в отдельном потоке
+    chat_id = "ВАШ_CHAT_ID"  # Замените на ваш ID чата
+    t = Thread(target=start_scheduler, args=(chat_id,))
+    t.start()
+
     keep_alive()
     app.run_polling()
 
