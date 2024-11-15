@@ -115,12 +115,14 @@ def get_ukrainian_joke():
     else:
         return "Не удалось получить анекдоты. Попробуйте позже."
 
-# Обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     user_message = update.message.text.lower()
+
+    # Логирование полученного сообщения
+    logger.info(f"Сообщение от {update.effective_user.username}: {user_message}")
 
     # Инициализация или увеличение счётчика использования команд
     if user_id not in user_commands_count:
@@ -129,7 +131,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if any(cmd in user_message for cmd in ["курс", "биток", "анекдот", "мем"]):
         user_commands_count[user_id] += 1
 
-        # Если пользователь использует команды 3 раза или больше
+        # Лимит использования команд
         if user_commands_count[user_id] >= 3:
             await context.bot.send_message(chat_id=chat_id, text="Вы очманели, я устал! Иди ловить ляща!")
             return
@@ -138,39 +140,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "курс" in user_message:
         rates_message = get_fish_rates()
         await context.bot.send_message(chat_id=chat_id, text=rates_message)
+
     elif "биток" in user_message:
         btc_message = get_bitcoin_rate()
         await context.bot.send_message(chat_id=chat_id, text=btc_message)
+
     elif "мем" in user_message:
         meme_url = get_meme()
         await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+
     elif "анекдот" in user_message:
-        joke_message = get_joke()
+        joke_message = get_ukrainian_joke()
         await context.bot.send_message(chat_id=chat_id, text=joke_message)
+
     elif "тревога" in user_message:
         is_alert = check_kyiv_alert()
         if is_alert:
             await context.bot.send_message(chat_id=chat_id, text="🔴 В Киеве тревога! Будьте осторожны!")
         else:
             await context.bot.send_message(chat_id=chat_id, text="✅ В Киеве всё спокойно.")
-     
+
+    # Реакция на дополнительные ключевые слова
     if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
-        await update.message.reply_text("задрот")
-    elif "курс" in user_message:
-        rates_message = get_fish_rates()
-        await update.message.reply_text(rates_message)
-    elif "биток" in user_message:
-        btc_message = get_bitcoin_rate()
-        await update.message.reply_text(btc_message)
-    elif "анекдот" in user_message:
-        joke_message = get_ukrainian_joke()
-        await update.message.reply_text(joke_message)
-    elif "мем" in user_message:
-        meme_url = get_random_meme()
-        if meme_url != "Не удалось получить мем.":
-            await update.message.reply_photo(meme_url)
-        else:
-            await update.message.reply_text(meme_url)
+        await context.bot.send_message(chat_id=chat_id, text="задрот")
+
 # Основной запуск бота
 def main():
     print("Запуск бота...")
