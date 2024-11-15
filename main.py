@@ -173,10 +173,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     print("Запуск бота...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
-
-    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    app.add_handler(text_handler)
-
+    
     # Для планировщика запускаем в отдельном потоке
     t = Thread(target=start_scheduler, args=(bot,))
     t.start()
