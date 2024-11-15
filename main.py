@@ -3,19 +3,24 @@
 import random
 import requests
 import logging
-import feedparser
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
+import schedule
+import time
 
-# Вставьте ваш токен бота напрямую здесь
+# Вставьте ваш токен бота и ID чата
 TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Замените на ваш токен
+CHAT_ID = "ВАШ_CHAT_ID"  # Укажите ID чата, куда бот будет отправлять уведомления
 
 # Логгирование ошибок
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Настройка Telegram Bot API
+bot = Bot(token=TELEGRAM_TOKEN)
 
 # Настройка веб-сервера для поддержания активности
 app = Flask('')
@@ -31,7 +36,42 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
-# Список с рыбой и её случайными "курсами"
+# Проверка тревоги для Киева
+def check_kyiv_alert():
+    """Проверяет тревогу в Киеве на сайте https://map.ukrainealarm.com/."""
+    url = 'https://map.ukrainealarm.com/'
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, 'html.parser')
+            kyiv_status = soup.find('div', class_='Kyiv')  # Обновите класс или ID, если он изменится
+            if kyiv_status and 'Тривога' in kyiv_status.text:
+                return True
+        return False
+    except Exception as e:
+        logger.error(f"Ошибка при проверке тревоги: {e}")
+        return False
+
+# Отправка сообщения в Telegram
+def send_alert_message():
+    """Отправляет сообщение о тревоге в Telegram."""
+    message = "Палундра !!! Мы все обкакаемся! Тревога Киев"
+    bot.send_message(chat_id=CHAT_ID, text=message)
+
+# Регулярная проверка тревог
+def job():
+    if check_kyiv_alert():
+        send_alert_message()
+
+# Планировщик задач
+def start_scheduler():
+    """Запускает планировщик для регулярной проверки тревог."""
+    schedule.every(1).minutes.do(job)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
+
+# Другие функции (например, для обработки сообщений в чате)
 fish_list = ["карась", "лещ", "плотва", "тунец", "акула"]
 
 def get_fish_rates():
@@ -49,33 +89,8 @@ def get_bitcoin_rate():
     else:
         return "Не удалось получить курс биткоина."
 
-def get_ukrainian_joke():
-    url = "https://rozdil.lviv.ua/anekdot/"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, "html.parser")
-        jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
-
-        if jokes:
-            return random.choice(jokes)
-        else:
-            return "Не удалось найти анекдоты на странице."
-    else:
-        return "Не удалось получить анекдоты. Попробуйте позже."
-
-def get_random_meme():
-    url = "https://api.imgflip.com/get_memes"
-    response = requests.get(url)
-    data = response.json()
-    if data["success"]:
-        memes = data["data"]["memes"]
-        meme = random.choice(memes)
-        return meme["url"]
-    else:
-        return "Не удалось получить мем."
-
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработка входящих сообщений."""
     user_message = update.message.text.lower()
 
     if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
@@ -86,19 +101,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "биток" in user_message:
         btc_message = get_bitcoin_rate()
         await update.message.reply_text(btc_message)
-    elif "анекдот" in user_message:
-        joke_message = get_ukrainian_joke()
-        await update.message.reply_text(joke_message)
-    elif "мем" in user_message:
-        meme_url = get_random_meme()
-        if meme_url != "Не удалось получить мем.":
-            await update.message.reply_photo(meme_url)
-        else:
-            await update.message.reply_text(meme_url)
 
-async def error_handler(update, context):
-    logger.error(f"Произошла ошибка: {context.error}")
-
+# Основной запуск бота
 def main():
     print("Запуск бота...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
@@ -106,9 +110,11 @@ def main():
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
-    app.add_error_handler(error_handler)
+    t = Thread(target=start_scheduler)
+    t.start()
+
     app.run_polling()
 
 if __name__ == '__main__':
-    keep_alive()
-    main()
+    keep_alive()  # Запуск веб-сервера
+    main()        # Запуск бота
