@@ -52,16 +52,17 @@ def check_kyiv_alert():
         logger.error(f"Ошибка при проверке тревоги: {e}")
         return False
 
-# Отправка сообщения в Telegram
+# Отправка сообщения и изображения в Telegram
 def send_alert_message():
-    """Отправляет сообщение о тревоге в Telegram."""
+    """Отправляет сообщение и изображение о тревоге в Telegram."""
     message = "Палундра !!! Мы все обкакаемся! Тревога Киев"
-    bot.send_message(chat_id=CHAT_ID, text=message)
+    image_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
 
-# Регулярная проверка тревог
-def job():
-    if check_kyiv_alert():
-        send_alert_message()
+    try:
+        bot.send_message(chat_id=CHAT_ID, text=message)
+        bot.send_photo(chat_id=CHAT_ID, photo=image_url)
+    except Exception as e:
+        logger.error(f"Ошибка при отправке сообщения или изображения: {e}")
 
 # Планировщик задач
 def start_scheduler():
