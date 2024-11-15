@@ -12,8 +12,8 @@ import schedule
 import time
 
 # Вставьте ваш токен бота и ID чата
-TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Замените на ваш токен
-CHAT_ID = "ВАШ_CHAT_ID"  # Укажите ID чата, куда бот будет отправлять уведомления
+TELEGRAM_TOKEN = "YOUR_BOT_TOKEN"  # Замените на ваш токен
+CHAT_ID = "YOUR_CHAT_ID"  # Укажите ID чата, куда бот будет отправлять уведомления
 
 # Логгирование ошибок
 logging.basicConfig(level=logging.INFO)
@@ -90,11 +90,24 @@ def get_bitcoin_rate():
     else:
         return "Не удалось получить курс биткоина."
 
+# Хранение количества сообщений пользователей
+user_interactions = {}
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
+    user_id = update.effective_user.id
     user_message = update.message.text.lower()
 
-    if any(word in user_message.split() for word in ["кс", "cs", "катка", "катку", "каточку"]):
+    # Увеличиваем счетчик взаимодействий
+    if user_id in user_interactions:
+        user_interactions[user_id] += 1
+    else:
+        user_interactions[user_id] = 1
+
+    # Проверяем, сколько раз пользователь взаимодействовал с ботом
+    if user_interactions[user_id] >= 3:
+        await update.message.reply_text("Вы очманели, я устал! Иди ловить ляща!")
+    elif any(word in user_message.split() for word in ["кс", "cs", "катка", "катку", "каточку"]):
         await update.message.reply_text("задрот")
     elif "курс" in user_message:
         rates_message = get_fish_rates()
