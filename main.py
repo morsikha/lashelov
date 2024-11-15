@@ -11,9 +11,8 @@ from threading import Thread
 import schedule
 import time
 
-# Вставьте ваш токен бота и ID чата
-TELEGRAM_TOKEN = "YOUR_BOT_TOKEN"  # Замените на ваш токен
-CHAT_ID = "YOUR_CHAT_ID"  # Укажите ID чата, куда бот будет отправлять уведомления
+# Вставьте ваш токен бота
+TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Замените на ваш токен
 
 # Логгирование ошибок
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +35,9 @@ def keep_alive():
     t = Thread(target=run)
     t.start()
 
+# Словарь для отслеживания количества команд от пользователей
+user_commands_count = {}
+
 # Проверка тревоги для Киева
 def check_kyiv_alert():
     """Проверяет тревогу в Киеве на сайте https://map.ukrainealarm.com/."""
@@ -53,26 +55,30 @@ def check_kyiv_alert():
         return False
 
 # Отправка сообщения и изображения в Telegram
-def send_alert_message():
+def send_alert_message(chat_id):
     """Отправляет сообщение и изображение о тревоге в Telegram."""
     message = "Палундра !!! Мы все обкакаемся! Тревога Киев"
     image_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
 
     try:
-        bot.send_message(chat_id=CHAT_ID, text=message)
-        bot.send_photo(chat_id=CHAT_ID, photo=image_url)
+        bot.send_message(chat_id=chat_id, text=message)
+        bot.send_photo(chat_id=chat_id, photo=image_url)
     except Exception as e:
         logger.error(f"Ошибка при отправке сообщения или изображения: {e}")
 
 # Планировщик задач
-def start_scheduler():
+def start_scheduler(chat_id):
     """Запускает планировщик для регулярной проверки тревог."""
+    def job():
+        if check_kyiv_alert():
+            send_alert_message(chat_id)
+
     schedule.every(1).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-# Другие функции (например, для обработки сообщений в чате)
+# Функции для команд
 fish_list = ["карась", "лещ", "плотва", "тунец", "акула"]
 
 def get_fish_rates():
@@ -90,24 +96,65 @@ def get_bitcoin_rate():
     else:
         return "Не удалось получить курс биткоина."
 
-# Хранение количества сообщений пользователей
-user_interactions = {}
+def get_meme():
+    # URL мемов
+    return "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
 
+def get_ukrainian_joke():
+    url = "https://rozdil.lviv.ua/anekdot/"
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, "html.parser")
+        jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
+
+        if jokes:
+            return random.choice(jokes)
+        else:
+            return "Не удалось найти анекдоты на странице."
+    else:
+        return "Не удалось получить анекдоты. Попробуйте позже."
+
+# Обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
     user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
     user_message = update.message.text.lower()
 
-    # Увеличиваем счетчик взаимодействий
-    if user_id in user_interactions:
-        user_interactions[user_id] += 1
-    else:
-        user_interactions[user_id] = 1
+    # Инициализация или увеличение счётчика использования команд
+    if user_id not in user_commands_count:
+        user_commands_count[user_id] = 0
 
-    # Проверяем, сколько раз пользователь взаимодействовал с ботом
-    if user_interactions[user_id] >= 3:
-        await update.message.reply_text("Вы очманели, я устал! Иди ловить ляща!")
-    elif any(word in user_message.split() for word in ["кс", "cs", "катка", "катку", "каточку"]):
+    if any(cmd in user_message for cmd in ["курс", "биток", "анекдот", "мем"]):
+        user_commands_count[user_id] += 1
+
+        # Если пользователь использует команды 3 раза или больше
+        if user_commands_count[user_id] >= 3:
+            await context.bot.send_message(chat_id=chat_id, text="Вы очманели, я устал! Иди ловить ляща!")
+            return
+
+    # Реакция на команды
+    if "курс" in user_message:
+        rates_message = get_fish_rates()
+        await context.bot.send_message(chat_id=chat_id, text=rates_message)
+    elif "биток" in user_message:
+        btc_message = get_bitcoin_rate()
+        await context.bot.send_message(chat_id=chat_id, text=btc_message)
+    elif "мем" in user_message:
+        meme_url = get_meme()
+        await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+    elif "анекдот" in user_message:
+        joke_message = get_joke()
+        await context.bot.send_message(chat_id=chat_id, text=joke_message)
+    elif "тревога" in user_message:
+        is_alert = check_kyiv_alert()
+        if is_alert:
+            await context.bot.send_message(chat_id=chat_id, text="🔴 В Киеве тревога! Будьте осторожны!")
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="✅ В Киеве всё спокойно.")
+     
+    if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
         await update.message.reply_text("задрот")
     elif "курс" in user_message:
         rates_message = get_fish_rates()
@@ -115,7 +162,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "биток" in user_message:
         btc_message = get_bitcoin_rate()
         await update.message.reply_text(btc_message)
-
+    elif "анекдот" in user_message:
+        joke_message = get_ukrainian_joke()
+        await update.message.reply_text(joke_message)
+    elif "мем" in user_message:
+        meme_url = get_random_meme()
+        if meme_url != "Не удалось получить мем.":
+            await update.message.reply_photo(meme_url)
+        else:
+            await update.message.reply_text(meme_url)
 # Основной запуск бота
 def main():
     print("Запуск бота...")
@@ -124,11 +179,12 @@ def main():
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
-    t = Thread(target=start_scheduler)
+    # Для планировщика запускаем в отдельном потоке
+    t = Thread(target=start_scheduler, args=(bot,))
     t.start()
 
+    keep_alive()
     app.run_polling()
 
 if __name__ == '__main__':
-    keep_alive()  # Запуск веб-сервера
-    main()        # Запуск бота
+    main()
