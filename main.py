@@ -115,26 +115,31 @@ def get_ukrainian_joke():
     else:
         return "Не удалось получить анекдоты. Попробуйте позже."
 
+# Глобальный словарь для подсчёта команд от пользователей
+user_commands_count = {}
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
-    user_id = update.effective_user.id
-    chat_id = update.effective_chat.id
-    user_message = update.message.text.lower()
+    user_id = update.effective_user.id  # ID пользователя
+    chat_id = update.effective_chat.id  # ID чата
+    user_message = update.message.text.lower()  # Текст сообщения в нижнем регистре
 
-    # Логирование полученного сообщения
-    logger.info(f"Сообщение от {update.effective_user.username}: {user_message}")
+    # Логируем входящее сообщение
+    logger.info(f"Сообщение от {update.effective_user.username} ({user_id}): {user_message}")
 
-    # Инициализация или увеличение счётчика использования команд
+    # Инициализация счётчика для нового пользователя
     if user_id not in user_commands_count:
         user_commands_count[user_id] = 0
 
+    # Если сообщение содержит ключевые команды, увеличиваем счётчик
     if any(cmd in user_message for cmd in ["курс", "биток", "анекдот", "мем"]):
         user_commands_count[user_id] += 1
+        logger.info(f"Пользователь {user_id} отправил {user_commands_count[user_id]} команд(ы).")
 
-        # Лимит использования команд
+        # Проверка лимита использования команд
         if user_commands_count[user_id] >= 3:
             await context.bot.send_message(chat_id=chat_id, text="Вы очманели, я устал! Иди ловить ляща!")
-            return
+            return  # Прекращаем обработку команды, если превышен лимит
 
     # Реакция на команды
     if "курс" in user_message:
@@ -160,7 +165,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await context.bot.send_message(chat_id=chat_id, text="✅ В Киеве всё спокойно.")
 
-    # Реакция на дополнительные ключевые слова
+    # Дополнительные реакции
     if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
         await context.bot.send_message(chat_id=chat_id, text="задрот")
 
