@@ -116,14 +116,14 @@ def get_ukrainian_joke():
 
 # Обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-    logger.info(f"ID группы или чата: {chat_id}")
     """Обработка входящих сообщений."""
     chat_id = update.effective_chat.id
     user_message = update.message.text.lower()
 
+    # Логируем ID группы или чата и информацию о сообщении
+    logger.info(f"ID группы или чата: {chat_id}")
     logger.info(f"Получено сообщение: {user_message} от {update.effective_user.username}")
-
+    
     if "курс" in user_message:
         rates_message = get_fish_rates()
         await context.bot.send_message(chat_id=chat_id, text=rates_message)
