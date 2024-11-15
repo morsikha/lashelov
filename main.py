@@ -119,9 +119,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id  # ID пользователя
     chat_id = update.effective_chat.id  # ID чата или группы
     user_message = update.message.text.lower()  # Текст сообщения в нижнем регистре
+    logger.info(f"DEBUG: {update}")
 
     # Логируем ID чата/группы и входящее сообщение
     logger.info(f"ID чата: {chat_id}, сообщение от {update.effective_user.username} ({user_id}): {user_message}")
+    logger.info(f"Получено сообщение: {update.message.text}")
+    logger.info(f"ID чата: {update.effective_chat.id}")
 
     # Если это групповая беседа, логируем тип чата
     if update.effective_chat.type in ["group", "supergroup"]:
@@ -174,7 +177,11 @@ def main():
     chat_id = "ВАШ_CHAT_ID"  # Замените на ваш ID чата
     t = Thread(target=start_scheduler, args=(chat_id,))
     t.start()
-
+    
+ # Добавление обработчика для отладки
+    debug_handler = MessageHandler(filters.ALL, debug_update)
+    app.add_handler(debug_handler)
+    
     keep_alive()
     app.run_polling()
 
