@@ -116,11 +116,11 @@ def get_ukrainian_joke():
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработка входящих сообщений."""
+    logger.info(f"DEBUG: {update}")
     user_id = update.effective_user.id  # ID пользователя
     chat_id = update.effective_chat.id  # ID чата или группы
     user_message = update.message.text.lower()  # Текст сообщения в нижнем регистре
-    logger.info(f"DEBUG: {update}")
-
+    
     # Логируем ID чата/группы и входящее сообщение
     logger.info(f"ID чата: {chat_id}, сообщение от {update.effective_user.username} ({user_id}): {user_message}")
     logger.info(f"Получено сообщение: {update.message.text}")
