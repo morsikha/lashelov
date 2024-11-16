@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import random
 import requests
 import logging
@@ -11,7 +12,7 @@ import schedule
 import time
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = "7861495333:AAEss7JlGJp_OJPPiRGj6q57ZtZ6mgpwsVg" # Укажите реальный токен
+TELEGRAM_TOKEN = "Ваш_токен_здесь"  # Укажите актуальный токен
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
@@ -24,10 +25,12 @@ flask_app = Flask(__name__)
 def home():
     return "Бот работает!"
 
-import os
+@flask_app.route('/health')
+def health_check():
+    return "OK", 200
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))  # Получаем порт из переменной окружения или используем 8080 по умолчанию
+    port = int(os.environ.get("PORT", 8080))  # Получаем порт из переменной окружения
     flask_app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
@@ -102,23 +105,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Объявляем функцию debug_update до её использования
 async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выводит информацию о сообщении для отладки."""
     logger.info(f"Отладочное сообщение: {update}")
-    user_message = update.message.text.lower()  # Текст сообщения
+    user_message = update.message.text.lower()
     logger.info(f"Получено сообщение: {user_message}")
-    # Можно добавить ответ для проверки
     await context.bot.send_message(update.effective_chat.id, text="Сообщение получено и обработано.")
 
 def main():
     print("Запуск бота...")
-    global app  # Используем уже созданный объект приложения
+    global app
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
     # Добавление обработчиков
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
-    debug_handler = MessageHandler(filters.ALL, debug_update)  # Debug обработчик
+    debug_handler = MessageHandler(filters.ALL, debug_update)
     app.add_handler(debug_handler)
 
     # Планировщик в отдельном потоке
@@ -127,5 +128,8 @@ def main():
     scheduler_thread.start()
 
     # Запуск Flask-сервера и Telegram бота
-    keep_alive()  # Если нужен Flask
+    keep_alive()
     app.run_polling()
+
+if __name__ == "__main__":
+    main()
