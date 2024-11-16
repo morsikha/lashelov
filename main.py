@@ -100,23 +100,32 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         meme_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
         await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
 
+# Объявляем функцию debug_update до её использования
 async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Выводит информацию о сообщении для отладки."""
     logger.info(f"Отладочное сообщение: {update}")
+    user_message = update.message.text.lower()  # Текст сообщения
+    logger.info(f"Получено сообщение: {user_message}")
+    # Можно добавить ответ для проверки
+    await context.bot.send_message(update.effective_chat.id, text="Сообщение получено и обработано.")
 
-# Основной запуск
 def main():
     print("Запуск бота...")
+    app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Обработчики
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(MessageHandler(filters.ALL, debug_update))
+    # Добавление обработчиков
+    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
+    app.add_handler(text_handler)
 
-    # Планировщик в отдельном потоке
-    chat_id = 123456789  # Замените на ваш реальный chat_id
-    Thread(target=start_scheduler, args=(chat_id,)).start()
+    debug_handler = MessageHandler(filters.ALL, debug_update)  # Здесь debug_update уже определен
+    app.add_handler(debug_handler)
 
-    keep_alive()  # Поддержание активности
+    # Для планировщика запускаем в отдельном потоке
+    chat_id = 123456789  # Укажите ваш реальный chat_id
+    scheduler_thread = Thread(target=start_scheduler, args=(chat_id,))
+    scheduler_thread.start()
+
+    # Запуск Telegram бота
+    keep_alive()
     app.run_polling()
 
-if __name__ == '__main__':
-    main()
