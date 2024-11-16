@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-
 import random
 import requests
 import logging
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from bs4 import BeautifulSoup
 from flask import Flask
@@ -12,193 +11,111 @@ import schedule
 import time
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = "7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo"  # Замените на ваш токен
+TELEGRAM_TOKEN = "Ваш_токен_здесь"  # Укажите реальный токен
 
-# Логгирование ошибок
+# Логгирование
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Настройка Telegram Bot API
-bot = Bot(token=TELEGRAM_TOKEN)
+# Telegram Bot
+app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-# Настройка веб-сервера для поддержания активности
-app = Flask('')
+# Flask-сервер для поддержания активности
+flask_app = Flask(__name__)
 
-@app.route('/')
+@flask_app.route('/')
 def home():
     return "Бот работает!"
 
-def run():
-    app.run(host='0.0.0.0', port=8080)
+def run_flask():
+    flask_app.run(host='0.0.0.0', port=8080)
 
 def keep_alive():
-    t = Thread(target=run)
-    t.start()
+    Thread(target=run_flask).start()
 
-# Словарь для отслеживания количества команд от пользователей
-user_commands_count = {}
-
-# Проверка тревоги для Киева
+# Проверка тревоги в Киеве
 def check_kyiv_alert():
-    """Проверяет тревогу в Киеве на сайте https://map.ukrainealarm.com/."""
     url = 'https://map.ukrainealarm.com/'
     try:
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            kyiv_status = soup.find('div', class_='Kyiv')  # Убедитесь, что это правильный селектор
+            kyiv_status = soup.find('div', class_='Kyiv')  # Проверьте селектор
             if kyiv_status and 'Тривога' in kyiv_status.text:
                 return True
-        return False
     except Exception as e:
         logger.error(f"Ошибка при проверке тревоги: {e}")
-        return False
+    return False
 
-# Отправка сообщения и изображения в Telegram
-def send_alert_message(chat_id):
-    """Отправляет сообщение и изображение о тревоге в Telegram."""
+async def send_alert_message(chat_id: int):
     message = "Палундра !!! Мы все обкакаемся! Тревога Киев"
     image_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
-
     try:
-        bot.send_message(chat_id=chat_id, text=message)
-        bot.send_photo(chat_id=chat_id, photo=image_url)
+        await app.bot.send_message(chat_id=chat_id, text=message)
+        await app.bot.send_photo(chat_id=chat_id, photo=image_url)
     except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения или изображения: {e}")
+        logger.error(f"Ошибка при отправке сообщения: {e}")
 
-# Планировщик задач
-def start_scheduler(chat_id):
-    """Запускает планировщик для регулярной проверки тревог."""
+def start_scheduler(chat_id: int):
     def job():
         if check_kyiv_alert():
-            send_alert_message(chat_id)
+            app.create_task(send_alert_message(chat_id))  # Асинхронный вызов
 
     schedule.every(1).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
 
-# Функции для команд
-fish_list = ["карась", "лещ", "плотва", "тунец", "акула"]
-
-def get_fish_rates():
-    rates = {fish: round(random.uniform(10, 1000), 2) for fish in fish_list}
-    rate_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
-    return f"🐟 Текущие курсы рыбешки:\n\n{rate_message}"
-
-def get_bitcoin_rate():
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        btc_price = data["bitcoin"]["usd"]
-        return f"💰 Курс биткоина: ${btc_price} USD"
-    else:
-        return "Не удалось получить курс биткоина."
-
-def get_meme():
-    return "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
-
-def get_ukrainian_joke():
-    url = "https://rozdil.lviv.ua/anekdot/"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.content, "html.parser")
-        jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
-
-        if jokes:
-            return random.choice(jokes)
-        else:
-            return "Не удалось найти анекдоты на странице."
-    else:
-        return "Не удалось получить анекдоты. Попробуйте позже."
-
+# Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработка входящих сообщений."""
-    logger.info(f"DEBUG: {update}")
-    user_id = update.effective_user.id  # ID пользователя
-    chat_id = update.effective_chat.id  # ID чата или группы
-    user_message = update.message.text.lower()  # Текст сообщения в нижнем регистре
-    
-    # Логируем ID чата/группы и входящее сообщение
-    logger.info(f"ID чата: {chat_id}, сообщение от {update.effective_user.username} ({user_id}): {user_message}")
-    logger.info(f"Получено сообщение: {update.message.text}")
-    logger.info(f"ID чата: {update.effective_chat.id}")
+    user_message = update.message.text.lower()
+    chat_id = update.effective_chat.id
 
-    # Если это групповая беседа, логируем тип чата
-    if update.effective_chat.type in ["group", "supergroup"]:
-        logger.info(f"Сообщение пришло из группы: {update.effective_chat.title} (ID: {chat_id})")
-
-    # Инициализация счётчика для нового пользователя
-    if user_id not in user_commands_count:
-        user_commands_count[user_id] = 0
-
-    # Увеличение счётчика при использовании команд
-    if any(cmd in user_message for cmd in ["курс", "биток", "анекдот", "мем"]):
-        user_commands_count[user_id] += 1
-        logger.info(f"Пользователь {user_id} отправил {user_commands_count[user_id]} команд(ы).")
-
-        # Проверка лимита использования команд
-        if user_commands_count[user_id] >= 3:
-            await context.bot.send_message(chat_id=chat_id, text="Вы очманели, я устал! Иди ловить ляща!")
-            return  # Прекращаем обработку команды, если превышен лимит
-
-    # Реакция на команды
     if "курс" in user_message:
-        rates_message = get_fish_rates()
-        await context.bot.send_message(chat_id=chat_id, text=rates_message)
+        rates = {fish: round(random.uniform(10, 1000), 2) for fish in ["карась", "лещ", "плотва", "тунец", "акула"]}
+        rates_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
+        await context.bot.send_message(chat_id=chat_id, text=f"🐟 Текущие курсы рыбешки:\n\n{rates_message}")
 
     elif "биток" in user_message:
-        btc_message = get_bitcoin_rate()
-        await context.bot.send_message(chat_id=chat_id, text=btc_message)
-
-    elif "мем" in user_message:
-        meme_url = get_meme()
-        await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        response = requests.get(url)
+        if response.status_code == 200:
+            btc_price = response.json()["bitcoin"]["usd"]
+            await context.bot.send_message(chat_id=chat_id, text=f"💰 Курс биткоина: ${btc_price} USD")
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
 
     elif "анекдот" in user_message:
-        joke_message = get_ukrainian_joke()
-        await context.bot.send_message(chat_id=chat_id, text=joke_message)
+        url = "https://rozdil.lviv.ua/anekdot/"
+        response = requests.get(url)
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.content, "html.parser")
+            jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
+            joke = random.choice(jokes) if jokes else "Анекдоты не найдены."
+            await context.bot.send_message(chat_id=chat_id, text=joke)
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Ошибка получения анекдотов.")
 
-    # Дополнительные реакции на ключевые слова
-    if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
-        await context.bot.send_message(chat_id=chat_id, text="задрот")
+    elif "мем" in user_message:
+        meme_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
+        await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
 
+async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    logger.info(f"Отладочное сообщение: {update}")
+
+# Основной запуск
 def main():
     print("Запуск бота...")
-    app = Application.builder().token(TELEGRAM_TOKEN).build()
 
-    # Добавление обработчиков
-    text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    app.add_handler(text_handler)
+    # Обработчики
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(MessageHandler(filters.ALL, debug_update))
 
-    debug_handler = MessageHandler(filters.ALL, debug_update)
-    app.add_handler(debug_handler)
+    # Планировщик в отдельном потоке
+    chat_id = 123456789  # Замените на ваш реальный chat_id
+    Thread(target=start_scheduler, args=(chat_id,)).start()
 
-    # Для планировщика запускаем в отдельном потоке
-    chat_id = "123456789"  # Укажите реальный ID чата
-    scheduler_thread = Thread(target=start_scheduler, args=(chat_id,))
-    scheduler_thread.start()
-
-    # Запуск Telegram бота
-    keep_alive()  # Если нужен Flask-сервер
-    app.run_polling()
-    
-    # Функция для отладки
-async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Выводит информацию о сообщении для отладки."""
-    logger.info(f"Отладочное сообщение: {update}")
-    user_message = update.message.text.lower()  # Текст сообщения
-    logger.info(f"Получено сообщение: {user_message}")
-    # Вы можете сделать другие действия по отладке, например, ответить на сообщение
-    await context.bot.send_message(update.effective_chat.id, text="Сообщение получено и обработано.")
-
- # Добавление обработчика для отладки
-    debug_handler = MessageHandler(filters.ALL, debug_update)
-    app.add_handler(debug_handler)
-    
-    keep_alive()
+    keep_alive()  # Поддержание активности
     app.run_polling()
 
 if __name__ == '__main__':
