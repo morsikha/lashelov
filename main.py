@@ -17,9 +17,6 @@ TELEGRAM_TOKEN = "Ваш_токен_здесь"  # Укажите реальны
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Telegram Bot
-app = Application.builder().token(TELEGRAM_TOKEN).build()
-
 # Flask-сервер для поддержания активности
 flask_app = Flask(__name__)
 
