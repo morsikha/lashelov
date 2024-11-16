@@ -11,7 +11,7 @@ import schedule
 import time
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = "Ваш_токен_здесь"  # Укажите реальный токен
+TELEGRAM_TOKEN = "1926045725:AAHRi1W0eKtkPYmtrZKRZp41FzXatHY9fdA"  # Укажите реальный токен
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
