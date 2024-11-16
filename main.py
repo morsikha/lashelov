@@ -9,6 +9,7 @@ from flask import Flask
 from threading import Thread
 import schedule
 import time
+import os
 
 # Вставьте ваш токен бота
 TELEGRAM_TOKEN = "1926045725:AAHRi1W0eKtkPYmtrZKRZp41FzXatHY9fdA"  # Укажите реальный токен
@@ -25,8 +26,9 @@ def home():
     return "Бот работает!"
 
 def run_flask():
-    flask_app.run(host='0.0.0.0', port=8080)
-
+    port = int(os.environ.get("PORT", 8080))  # Используем PORT из окружения, по умолчанию 8080
+    flask_app.run(host='0.0.0.0', port=port)
+    
 def keep_alive():
     Thread(target=run_flask).start()
 
