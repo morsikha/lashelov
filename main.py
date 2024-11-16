@@ -165,18 +165,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if any(word in user_message for word in ["кс", "cs", "катка", "катку"]):
         await context.bot.send_message(chat_id=chat_id, text="задрот")
 
-# Основной запуск бота
 def main():
     print("Запуск бота...")
     app = Application.builder().token(TELEGRAM_TOKEN).build()
 
+    # Добавление обработчиков
     text_handler = MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
     app.add_handler(text_handler)
 
+    debug_handler = MessageHandler(filters.ALL, debug_update)
+    app.add_handler(debug_handler)
+
     # Для планировщика запускаем в отдельном потоке
-    chat_id = "ВАШ_CHAT_ID"  # Замените на ваш ID чата
-    t = Thread(target=start_scheduler, args=(chat_id,))
-    t.start()
+    chat_id = "123456789"  # Укажите реальный ID чата
+    scheduler_thread = Thread(target=start_scheduler, args=(chat_id,))
+    scheduler_thread.start()
+
+    # Запуск Telegram бота
+    keep_alive()  # Если нужен Flask-сервер
+    app.run_polling()
     
     # Функция для отладки
 async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
