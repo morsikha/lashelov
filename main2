@@ -12,7 +12,7 @@ import schedule
 import time
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"  # Укажите актуальный токен
+TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
@@ -30,7 +30,7 @@ def health_check():
     return "OK", 200
 
 def run_flask():
-    port = int(os.environ.get("PORT", 8080))  # Получаем порт из переменной окружения
+    port = int(os.environ.get("PORT", 8080))
     flask_app.run(host='0.0.0.0', port=port)
 
 def keep_alive():
@@ -43,7 +43,7 @@ def check_kyiv_alert():
         response = requests.get(url)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, 'html.parser')
-            kyiv_status = soup.find('div', class_='Kyiv')  # Проверьте селектор
+            kyiv_status = soup.find('div', class_='Kyiv')
             if kyiv_status and 'Тривога' in kyiv_status.text:
                 return True
     except Exception as e:
@@ -62,17 +62,37 @@ async def send_alert_message(chat_id: int):
 def start_scheduler(chat_id: int):
     def job():
         if check_kyiv_alert():
-            app.create_task(send_alert_message(chat_id))  # Асинхронный вызов
+            app.create_task(send_alert_message(chat_id))
 
     schedule.every(1).minutes.do(job)
     while True:
         schedule.run_pending()
         time.sleep(1)
 
+# Получение случайного мема через API Imgflip
+def get_random_meme():
+    url = "https://api.imgflip.com/get_memes"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            memes = data.get("data", {}).get("memes", [])
+            if memes:
+                random_meme = random.choice(memes)
+                return random_meme["url"]
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка при получении мема: {e}")
+        return None
+
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     chat_id = update.effective_chat.id
+
+    if any(keyword in user_message for keyword in ["катка", "катку", "каточку", "кс", "cs", "будешь играть"]):
+        await context.bot.send_message(chat_id=chat_id, text="Внимание, внимание! Смотрите сюда: перед вами настоящий задрот КС в своём естественном ареале!")
+        return
 
     if "курс" in user_message:
         rates = {fish: round(random.uniform(10, 1000), 2) for fish in ["карась", "лещ", "плотва", "тунец", "акула"]}
@@ -100,15 +120,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_message(chat_id=chat_id, text="Ошибка получения анекдотов.")
 
     elif "мем" in user_message:
-        meme_url = "https://raw.githubusercontent.com/morsikha/lashelov/main/alert.jpg"
-        await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+        meme_url = get_random_meme()
+        if meme_url:
+            await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+        else:
+            await context
+    elif "мем" in user_message:
+        meme_url = get_random_meme()
+        if meme_url:
+            await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Не удалось загрузить мем.")
 
 # Объявляем функцию debug_update до её использования
 async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Отладочное сообщение: {update}")
     user_message = update.message.text.lower()
     logger.info(f"Получено сообщение: {user_message}")
-    await context.bot.send_message(update.effective_chat.id, text="Сообщение получено и обработано.")
+    await context.bot.send_message(chat_id=update.effective_chat.id, text="Сообщение получено и обработано.")
 
 def main():
     print("Запуск бота...")
@@ -123,8 +152,7 @@ def main():
     app.add_handler(debug_handler)
 
     # Планировщик в отдельном потоке
-    chat_id = 123456789  # Укажите ваш реальный chat_id
-    scheduler_thread = Thread(target=start_scheduler, args=(chat_id,))
+    scheduler_thread = Thread(target=start_scheduler, args=(None,))
     scheduler_thread.start()
 
     # Запуск Flask-сервера и Telegram бота
