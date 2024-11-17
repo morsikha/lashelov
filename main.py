@@ -102,9 +102,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif "биток" in user_message:
         url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
         response = requests.get(url)
+        
         if response.status_code == 200:
-            btc_price = response.json()["bitcoin"]["usd"]
-            await context.bot.send_message(chat_id=chat_id, text=f"💰 Курс биткоина: ${btc_price} USD")
+            data = response.json()
+            btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
+            
+            # Получение курсов случайных валют
+            currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
+            currencies_response = requests.get(currencies_url)
+            currencies_message = ""
+            
+            if currencies_response.status_code == 200:
+                currencies_data = currencies_response.json()
+                for currency, details in currencies_data.items():
+                    currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
+            
+            # Формирование ответа
+            message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
+            await context.bot.send_message(chat_id=chat_id, text=message)
         else:
             await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
 
@@ -119,12 +134,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await context.bot.send_message(chat_id=chat_id, text="Ошибка получения анекдотов.")
 
-    elif "мем" in user_message:
-        meme_url = get_random_meme()
-        if meme_url:
-            await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
-        else:
-            await context
     elif "мем" in user_message:
         meme_url = get_random_meme()
         if meme_url:
