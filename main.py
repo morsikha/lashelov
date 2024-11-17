@@ -95,10 +95,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Реакция на упоминание "лящелов", "лящ" или "бот"
-if any(keyword in user_message for keyword in ["лящелов", "лящ", "бот"]):
-    phrases = ["Да-да, я тут!", "Чего хочешь?", "Я не понял, это ко мне?", "Эй, я занят!"]
-    await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
-    return  # Завершаем обработку, чтобы не выполнять другие условия
+    if any(keyword in user_message for keyword in ["лящелов", "лящ", "бот"]):
+        phrases = ["Да-да, я тут!", "Чего хочешь?", "Я не понял, это ко мне?", "Эй, я занят!"]
+        await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
+        return  # Завершаем обработку, чтобы не выполнять другие условия
 
     if "курс" in user_message:
         rates = {fish: round(random.uniform(10, 1000), 2) for fish in ["карась", "лещ", "плотва", "тунец", "акула"]}
