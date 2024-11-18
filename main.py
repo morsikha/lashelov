@@ -13,7 +13,7 @@ import time
 import openai
 
 # Настройка OpenAI API
-OPENAI_API_KEY = "ваш_ключ_OpenAI"  # Вставьте свой API-ключ
+OPENAI_API_KEY = "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"  # Вставьте свой API-ключ
 openai.api_key = OPENAI_API_KEY
 
 # Функция для обращения к OpenAI
