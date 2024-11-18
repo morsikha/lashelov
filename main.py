@@ -10,6 +10,27 @@ from flask import Flask
 from threading import Thread
 import schedule
 import time
+import openai
+
+# Настройка OpenAI API
+OPENAI_API_KEY = "ваш_ключ_OpenAI"  # Вставьте свой API-ключ
+openai.api_key = OPENAI_API_KEY
+
+# Функция для обращения к OpenAI
+def ask_openai(prompt):
+    try:
+        response = openai.Completion.create(
+            engine="text-davinci-003",  # Используйте нужный движок
+            prompt=prompt,
+            max_tokens=150,
+            n=1,
+            stop=None,
+            temperature=0.7,
+        )
+        return response["choices"][0]["text"].strip()
+        except Exception as e:
+        logger.error(f"Ошибка при обращении к OpenAI API: {e}")
+        return "Простите, я сейчас не могу ответить."
 
 # Вставьте ваш токен бота
 TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
@@ -89,6 +110,12 @@ def get_random_meme():
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     chat_id = update.effective_chat.id
+    
+# Реакция на упоминание "бот" с использованием OpenAI
+    if "бот" in user_message:
+        ai_response = ask_openai(f"Пользователь спросил: {user_message}")
+        await context.bot.send_message(chat_id=chat_id, text=ai_response)
+        return
 
    # Реакция на тему CS или игр
     if any(keyword in user_message for keyword in ["катка", "катку", "каточку", "кс", "cs", "будешь играть"]):
