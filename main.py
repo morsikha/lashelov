@@ -28,7 +28,7 @@ def ask_openai(prompt):
             temperature=0.7,
         )
         return response["choices"][0]["text"].strip()
-        except Exception as e:
+    except Exception as e:
         logger.error(f"Ошибка при обращении к OpenAI API: {e}")
         return "Простите, я сейчас не могу ответить."
 
