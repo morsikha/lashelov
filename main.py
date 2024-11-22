@@ -20,27 +20,20 @@ if not OPENAI_API_KEY:
 else:
     logging.info(f"API-ключ успешно загружен: {OPENAI_API_KEY[:5]}...")
 
-# Проверка доступности OpenAI API
-try:
-    openai.api_key = OPENAI_API_KEY
-    # Актуальный тест подключения
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "system", "content": "Это тест подключения."}],
-    )
-    logging.info("Успешно подключено к OpenAI API.")
-except Exception as e:
-    logging.error(f"Ошибка подключения к OpenAI API: {e}")
-    raise e
+# Установка API ключа
+openai.api_key = OPENAI_API_KEY
 
 # Функция для обращения к OpenAI
 def ask_openai(prompt):
     try:
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "system", "content": "Ты - умный помощник."}, {"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "Ты - умный помощник."},
+                {"role": "user", "content": prompt}
+            ]
         )
-        return response["choices"][0]["message"]["content"].strip()
+        return response.choices[0].message["content"].strip()
     except openai.error.AuthenticationError:
         logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
         return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
@@ -52,7 +45,7 @@ def ask_openai(prompt):
         return "Произошла неизвестная ошибка. Попробуйте позже."
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = os.getenv("7861495333:AAGFdhHavI5gd1_DRVtilAd-O2qmcA8iDeo")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
