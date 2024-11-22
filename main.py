@@ -34,13 +34,13 @@ def ask_openai(prompt):
             ]
         )
         return response.choices[0].message["content"].strip()
-    except openai.error.AuthenticationError as e:
+    except openai.AuthenticationError:
         logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
         return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
-    except openai.error.RateLimitError as e:
+    except openai.RateLimitError:
         logging.error("Превышен лимит запросов к OpenAI API.")
         return "Превышен лимит запросов. Пожалуйста, попробуйте позже."
-    except openai.error.OpenAIError as e:
+    except openai.OpenAIError as e:
         logging.error(f"Ошибка OpenAI API: {e}")
         return "Произошла ошибка при работе с OpenAI API. Попробуйте позже."
     except Exception as e:
