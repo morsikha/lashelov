@@ -23,8 +23,13 @@ else:
 # Проверка доступности OpenAI API
 try:
     openai.api_key = OPENAI_API_KEY
-    openai.Model.list()  # Тестовый запрос для проверки
+    # Актуальный тест подключения к OpenAI API
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "system", "content": "Это тест подключения."}],
+    )
     logging.info("Успешно подключено к OpenAI API.")
+    logging.info(f"Ответ модели: {response['choices'][0]['message']['content']}")
 except Exception as e:
     logging.error(f"Ошибка подключения к OpenAI API: {e}")
     raise e
@@ -32,15 +37,14 @@ except Exception as e:
 # Функция для обращения к OpenAI
 def ask_openai(prompt):
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=prompt,
-            max_tokens=150,
-            n=1,
-            stop=None,
-            temperature=0.7,
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "Ты - умный помощник."},
+                {"role": "user", "content": prompt},
+            ],
         )
-        return response["choices"][0]["text"].strip()
+        return response["choices"][0]["message"]["content"].strip()
     except openai.error.AuthenticationError:
         logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
         return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
@@ -141,25 +145,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     chat_id = update.effective_chat.id
 
-    # Реакции и команды
-    if "бот" in user_message:
-        ai_response = ask_openai(f"Пользователь спросил: {user_message}")
-        await context.bot.send_message(chat_id=chat_id, text=ai_response)
-        return
-
-    # Другие команды: "биток", "мем", "курс" (код для них, как ранее)
-     # Реакция на слова "кс", "каточка" и подобные
+   # Реакция на слова "кс", "каточка" и подобные
     if any(keyword in user_message for keyword in ["катка", "катку", "каточку", "кс", "cs", "будешь играть"]):
-        phrases = [
-            "Внимание, внимание! Смотрите сюда: перед вами настоящий задрот КС в своём естественном ареале!",
-            "Всем замереть! Перед нами настоящий король каток и задротства!",
-            "ТЫ че, КС говнецо!",
-            "На бутылку сядешь, если много будешь играть в КС.",
-            "Ты че, удали КС, а то пацаны на бутылку посядят.",
-            "Бутылка тебя ждет!",
-        ]
-        await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
-        return
+    phrases = [
+        "Внимание, внимание! Смотрите сюда: перед вами настоящий задрот КС в своём естественном ареале!",
+        "Всем замереть! Перед нами настоящий король каток и задротства!",
+        "ТЫ че, КС говнецо!",
+        "На бутылку сядешь, если много будешь играть в КС.",
+        "Ты че, удали КС, а то пацаны на бутылку посядят.",
+        "Бутылка тебя ждет!",
+    ]
+    await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
+    return
 
     # Команда "курс"
     if "курс" in user_message:
@@ -168,30 +165,43 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=f"🐟 Текущие курсы рыбешки:\n\n{rates_message}")
         return
 
-    # Команда "биток"
-    elif "биток" in user_message:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-        response = requests.get(url)
+  # Команда "биток"
+elif "биток" in user_message:
+    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
         
+        # Получение курсов других криптовалют
+        currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
+        currencies_response = requests.get(currencies_url)
+        currencies_message = ""
+        
+        if currencies_response.status_code == 200:
+            currencies_data = currencies_response.json()
+            for currency, details in currencies_data.items():
+                currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
+        
+        # Формирование ответа
+        message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
+        await context.bot.send_message(chat_id=chat_id, text=message)
+    else:
+        await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
+    return
+
+    # Команда "анекдот"
+    elif "анекдот" in user_message:
+        url = "https://rozdil.lviv.ua/anekdot/"
+        response = requests.get(url)
         if response.status_code == 200:
-            data = response.json()
-            btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
-            
-            # Получение курсов других валют
-            currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
-            currencies_response = requests.get(currencies_url)
-            currencies_message = ""
-            
-            if currencies_response.status_code == 200:
-                currencies_data = currencies_response.json()
-                for currency, details in currencies_data.items():
-                    currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
-            
-            # Формирование ответа
-            message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
-            await context.bot.send_message(chat_id=chat_id, text=message)
+            soup = BeautifulSoup(response.content, "html.parser")
+            jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
+            joke = random.choice(jokes) if jokes else "Анекдоты не найдены."
+            await context.bot.send_message(chat_id=chat_id, text=joke)
         else:
-            await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
+            await context.bot.send_message(chat_id=chat_id, text="Ошибка получения анекдотов.")
         return
 
     # Команда "мем"
