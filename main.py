@@ -5,11 +5,10 @@ import requests
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
+from telegram.error import TelegramError
 from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
-import schedule
-import time
 import openai
 
 # Получение API ключа
@@ -34,13 +33,13 @@ def ask_openai(prompt):
             ]
         )
         return response.choices[0].message["content"].strip()
-    except openai.AuthenticationError:
+    except openai.error.AuthenticationError:
         logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
         return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
-    except openai.RateLimitError:
+    except openai.error.RateLimitError:
         logging.error("Превышен лимит запросов к OpenAI API.")
         return "Превышен лимит запросов. Пожалуйста, попробуйте позже."
-    except openai.OpenAIError as e:
+    except openai.error.OpenAIError as e:
         logging.error(f"Ошибка OpenAI API: {e}")
         return "Произошла ошибка при работе с OpenAI API. Попробуйте позже."
     except Exception as e:
@@ -71,6 +70,21 @@ def run_flask():
 
 def keep_alive():
     Thread(target=run_flask).start()
+
+# Обработчик ошибок
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """Журналирует исключения и отправляет сообщение об ошибке, если возможно."""
+    logger.error(msg="Произошла ошибка Telegram", exc_info=context.error)
+    
+    # Попытка уведомить пользователя, если это возможно
+    if update and isinstance(update, Update) and update.effective_chat:
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="Произошла ошибка. Попробуйте позже."
+            )
+        except TelegramError as e:
+            logger.error(f"Ошибка при отправке сообщения об ошибке: {e}")
 
 # Функция получения случайного мема через API Imgflip
 def get_random_meme():
@@ -122,21 +136,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Эй, чемпион! Ты снова в деле? Готовься, твоя катка ждёт!",
             "Легенда КС появилась в чате! Все аплодируем! 👏",
             "Кто-то сказал 'катка'? Задрот уже готов затащить! 🎮",
-            "Алло, служба поддержки игр? У нас тут профессионал КС разгуливает!",
-            "Это что, чемпионат мира по задротству? Прямо здесь и сейчас? 🔥",
-            "Ну всё, кто-то снова готов ломать клавиатуры и мышки в КС!",
-            "Смотрите на этого бойца! С ним не поспоришь — мастер всех каток.",
-            "Перед вами игрок уровня 'задрот PRO'. Бойтесь и уважайте!",
-            "Задрот КС замечен! Всем срочно на позиции! 🛡️",
-            "ВНИМАНИЕ! Геймер 99-го уровня вошёл в чат.",
-            "Ну что, начнётся эпическая катка или опять просто разговоры? 🎧",
-            "Собрались, катку делаем! Задрот уже разогревает руки!",
-            "Тут запахло каткой! Готовимся наблюдать профессиональный гейминг.",
-            "Ты снова в деле? Катки зовут, а ты лучший в этом деле!",
-            "Перед нами мастер КС, тащит всех и вся. Мы не достойны. 🙌",
-            "Это птица? Это самолёт? Нет, это задрот КС! 🚀",
-            "Ты че, КС говно!",
-            "На бутылку сядешь, если будешь много играть!",
         ]
         await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
         return
@@ -189,6 +188,10 @@ def main():
     global app
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
+    # Регистрация обработчика ошибок
+    app.add_error_handler(error_handler)
+    
     keep_alive()
     app.run_polling()
 
