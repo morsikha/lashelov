@@ -1,7 +1,7 @@
-requests
-beautifulsoup4
-python-telegram-bot
-feedparser
-flask
-schedule
-openai
+requests>=2.26.0
+beautifulsoup4>=4.10.0
+python-telegram-bot>=20.0
+feedparser>=6.0.8
+flask>=2.1.0
+schedule>=1.1.0
+openai>=1.0.0
