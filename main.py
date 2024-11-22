@@ -45,7 +45,7 @@ def ask_openai(prompt):
         return "Произошла неизвестная ошибка. Попробуйте позже."
 
 # Вставьте ваш токен бота
-TELEGRAM_TOKEN = "123456789:ABCDefGHIjkLmnOPqRstUVwxyZ"
+TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
