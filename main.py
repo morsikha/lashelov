@@ -11,6 +11,7 @@ from threading import Thread
 import schedule
 import time
 import openai
+import openai.error
 
 # Получение API ключа
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -40,6 +41,9 @@ def ask_openai(prompt):
     except openai.error.RateLimitError:
         logging.error("Превышен лимит запросов к OpenAI API.")
         return "Превышен лимит запросов. Пожалуйста, попробуйте позже."
+    except openai.error.OpenAIError as e:
+        logging.error(f"Ошибка OpenAI API: {e}")
+        return "Произошла ошибка при работе с OpenAI API. Попробуйте позже."
     except Exception as e:
         logging.error(f"Непредвиденная ошибка: {e}")
         return "Произошла неизвестная ошибка. Попробуйте позже."
