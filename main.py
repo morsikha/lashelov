@@ -33,7 +33,7 @@ except Exception as e:
 def ask_openai(prompt):
     try:
         response = openai.Completion.create(
-            engine="text-davinci-003",  # Используйте нужный движок
+            engine="text-davinci-003",
             prompt=prompt,
             max_tokens=150,
             n=1,
@@ -144,11 +144,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         phrases = [
             "Внимание, внимание! Смотрите сюда: перед вами настоящий задрот КС в своём естественном ареале!",
             "Всем замереть! Перед нами настоящий король каток и задротства!",
-            "ТЫ че кс говнецо!"
-            "На бутылку сядешь если много будешь играть в кс"
-            "ты че удали кс, а то пацаны на бутылку посядят"
-            "бутылка тебя ждет"
-            # Другие фразы...
+            "ТЫ че, КС говнецо!",
+            "На бутылку сядешь, если много будешь играть в КС.",
+            "Ты че, удали КС, а то пацаны на бутылку посядят.",
+            "Бутылка тебя ждет!",
         ]
         await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
         return
@@ -160,31 +159,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=f"🐟 Текущие курсы рыбешки:\n\n{rates_message}")
         return
 
-# Команда "биток"
-elif "биток" in user_message:
-    url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data = response.json()
-        btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
+    # Команда "биток"
+    elif "биток" in user_message:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        response = requests.get(url)
         
-        # Получение курсов других валют
-        currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
-        currencies_response = requests.get(currencies_url)
-        currencies_message = ""
-        
-        if currencies_response.status_code == 200:
-            currencies_data = currencies_response.json()
-            for currency, details in currencies_data.items():
-                currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
-        
-        # Формирование ответа
-        message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
-        await context.bot.send_message(chat_id=chat_id, text=message)
-    else:
-        await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
-    return
+        if response.status_code == 200:
+            data = response.json()
+            btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
+            
+            # Получение курсов других валют
+            currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
+            currencies_response = requests.get(currencies_url)
+            currencies_message = ""
+            
+            if currencies_response.status_code == 200:
+                currencies_data = currencies_response.json()
+                for currency, details in currencies_data.items():
+                    currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
+            
+            # Формирование ответа
+            message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
+            await context.bot.send_message(chat_id=chat_id, text=message)
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
+        return
 
     # Команда "мем"
     elif "мем" in user_message:
@@ -212,15 +211,4 @@ def main():
     app.add_handler(text_handler)
 
     debug_handler = MessageHandler(filters.ALL, debug_update)
-    app.add_handler(debug_handler)
-
-    # Планировщик в отдельном потоке
-    scheduler_thread = Thread(target=start_scheduler, args=(None,))
-    scheduler_thread.start()
-
-    # Запуск Flask-сервера и Telegram бота
-    keep_alive()
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+    app.add_handler
