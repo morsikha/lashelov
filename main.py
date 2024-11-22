@@ -32,7 +32,7 @@ def ask_openai(prompt):
                 {"role": "user", "content": prompt}
             ]
         )
-        return response.choices[0].message["content"].strip()
+        return response['choices'][0]['message']['content'].strip()
     except openai.error.AuthenticationError:
         logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
         return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
