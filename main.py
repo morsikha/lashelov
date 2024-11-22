@@ -148,7 +148,60 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Другие команды: "биток", "мем", "курс" (код для них, как ранее)
-    # ...
+     # Реакция на слова "кс", "каточка" и подобные
+    if any(keyword in user_message for keyword in ["катка", "катку", "каточку", "кс", "cs", "будешь играть"]):
+        phrases = [
+            "Внимание, внимание! Смотрите сюда: перед вами настоящий задрот КС в своём естественном ареале!",
+            "Всем замереть! Перед нами настоящий король каток и задротства!",
+            "ТЫ че, КС говнецо!",
+            "На бутылку сядешь, если много будешь играть в КС.",
+            "Ты че, удали КС, а то пацаны на бутылку посядят.",
+            "Бутылка тебя ждет!",
+        ]
+        await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
+        return
+
+    # Команда "курс"
+    if "курс" in user_message:
+        rates = {fish: round(random.uniform(10, 1000), 2) for fish in ["карась", "лещ", "плотва", "тунец", "акула"]}
+        rates_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
+        await context.bot.send_message(chat_id=chat_id, text=f"🐟 Текущие курсы рыбешки:\n\n{rates_message}")
+        return
+
+    # Команда "биток"
+    elif "биток" in user_message:
+        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        response = requests.get(url)
+        
+        if response.status_code == 200:
+            data = response.json()
+            btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
+            
+            # Получение курсов других валют
+            currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
+            currencies_response = requests.get(currencies_url)
+            currencies_message = ""
+            
+            if currencies_response.status_code == 200:
+                currencies_data = currencies_response.json()
+                for currency, details in currencies_data.items():
+                    currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
+            
+            # Формирование ответа
+            message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
+            await context.bot.send_message(chat_id=chat_id, text=message)
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
+        return
+
+    # Команда "мем"
+    elif "мем" in user_message:
+        meme_url = get_random_meme()
+        if meme_url:
+            await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
+        else:
+            await context.bot.send_message(chat_id=chat_id, text="Не удалось загрузить мем.")
+        return
 
 # Объявляем функцию debug_update
 async def debug_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
