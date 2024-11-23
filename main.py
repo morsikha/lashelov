@@ -13,6 +13,9 @@ from threading import Thread
 # Вставьте ваш токен бота
 TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
 
+# Вставьте ваш API-ключ OpenWeatherMap
+OPENWEATHER_API_KEY = "f90904c2ab88b6543e799322389c4c31"
+
 # Логгирование
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -77,21 +80,41 @@ def get_joke():
         logger.error(f"Ошибка при получении анекдотов: {e}")
         return "Произошла ошибка при загрузке анекдотов."
 
+# Функция получения погоды для Киева
+def get_weather():
+    city = "Kyiv"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            temp = data['main']['temp']
+            description = data['weather'][0]['description']
+            return f"Погода в {city}: {temp}°C, {description.capitalize()}"
+        return "Не удалось получить данные о погоде."
+    except Exception as e:
+        logger.error(f"Ошибка при получении погоды: {e}")
+        return "Произошла ошибка при загрузке данных о погоде."
+
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     chat_id = update.effective_chat.id
+
+    # Реакция на слово "погода"
+    if "погода" in user_message:
+        weather_info = get_weather()
+        await context.bot.send_message(chat_id=chat_id, text=weather_info)
+        return
 
     # Реакция на слова "кс", "катка" и подобные
     if any(keyword in user_message for keyword in ["катка", "кс", "cs", "будешь играть"]):
         phrases = [
             "Внимание! Настоящий задрот КС!",
             "Всем замереть! Задрот в чате!",
-            "Всем замереть! Перед нами настоящий король каток и задротства!",
             "Опасность! Задрот КС в поле зрения. Срочно ищем противоядие!",
             "Эй, чемпион! Ты снова в деле? Готовься, твоя катка ждёт!",
             "Легенда КС появилась в чате! Все аплодируем! 👏",
-            "Кто-то сказал 'катка'? Задрот уже готов затащить! 🎮",
         ]
         await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
         return
