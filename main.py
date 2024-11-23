@@ -6,15 +6,19 @@ import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from telegram.error import TelegramError
-from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
+import schedule
+import time
 
 # Вставьте ваш токен бота
 TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
 
 # Вставьте ваш API-ключ OpenWeatherMap
 OPENWEATHER_API_KEY = "f90904c2ab88b6543e799322389c4c31"
+
+# URL для картинки при тревоге
+ALERT_IMAGE_URL = "https://raw.githubusercontent.com/ваш-репозиторий/alert.jpg"  # Замените на реальную ссылку
 
 # Логгирование
 logging.basicConfig(level=logging.INFO)
@@ -38,18 +42,55 @@ def run_flask():
 def keep_alive():
     Thread(target=run_flask).start()
 
-# Обработчик ошибок
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    """Журналирует исключения и отправляет сообщение об ошибке, если возможно."""
-    logger.error(msg="Произошла ошибка Telegram", exc_info=context.error)
-    if update and isinstance(update, Update) and update.effective_chat:
-        try:
-            await context.bot.send_message(
-                chat_id=update.effective_chat.id,
-                text="Произошла ошибка. Попробуйте позже."
-            )
-        except TelegramError as e:
-            logger.error(f"Ошибка при отправке сообщения об ошибке: {e}")
+# Функция проверки тревоги в Киеве (пример API)
+def check_kyiv_alert():
+    try:
+        # Замените URL на реальное API для тревог
+        response = requests.get("https://api.ukraine-alerts.example/kyiv")  # Пример URL
+        if response.status_code == 200:
+            data = response.json()
+            return data.get("alert", False)  # Если тревога, возвращает True
+    except Exception as e:
+        logger.error(f"Ошибка при проверке тревоги: {e}")
+    return False
+
+# Функция отправки уведомлений в группы
+async def send_alert_to_groups(app: Application):
+    try:
+        message = "🚨 Внимание! Воздушная тревога в Киеве! Будьте в укрытии!"
+        async with app.bot:
+            updates = await app.bot.get_updates()
+            for update in updates:
+                if update.message and update.message.chat.type in ["group", "supergroup"]:
+                    chat_id = update.message.chat.id
+                    try:
+                        await app.bot.send_message(chat_id=chat_id, text=message)
+                        await app.bot.send_photo(chat_id=chat_id, photo=ALERT_IMAGE_URL)
+                        logger.info(f"Уведомление отправлено в группу с chat_id: {chat_id}")
+                    except TelegramError as e:
+                        logger.error(f"Ошибка при отправке уведомления в группу {chat_id}: {e}")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомлений: {e}")
+
+# Планировщик для проверки тревоги каждые 1 минуту
+def scheduler(app: Application):
+    schedule.every(1).minutes.do(lambda: app.create_task(send_alert_to_groups(app)))
+
+# Функция получения погоды для Киева
+def get_weather():
+    city = "Kyiv"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            temp = round(data['main']['temp'])
+            description = data['weather'][0]['description']
+            return f"Погода в {city}: {temp}°C, {description.capitalize()}"
+        return "Не удалось получить данные о погоде."
+    except Exception as e:
+        logger.error(f"Ошибка при получении погоды: {e}")
+        return "Произошла ошибка при загрузке данных о погоде."
 
 # Функция получения случайного мема через API Imgflip
 def get_random_meme():
@@ -79,22 +120,6 @@ def get_joke():
     except Exception as e:
         logger.error(f"Ошибка при получении анекдотов: {e}")
         return "Произошла ошибка при загрузке анекдотов."
-
-# Функция получения погоды для Киева
-def get_weather():
-    city = "Kyiv"
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            temp = data['main']['temp']
-            description = data['weather'][0]['description']
-            return f"Погода в {city}: {temp}°C, {description.capitalize()}"
-        return "Не удалось получить данные о погоде."
-    except Exception as e:
-        logger.error(f"Ошибка при получении погоды: {e}")
-        return "Произошла ошибка при загрузке данных о погоде."
 
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,14 +189,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Запуск бота
 def main():
     print("Запуск бота...")
-    global app
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    
-    # Регистрация обработчика ошибок
-    app.add_error_handler(error_handler)
-    
+
+    # Регистрация планировщика
+    scheduler(app)
+
+    # Запуск Flask-сервера и Telegram Polling
     keep_alive()
+    Thread(target=lambda: schedule.run_pending()).start()
     app.run_polling()
 
 if __name__ == "__main__":
