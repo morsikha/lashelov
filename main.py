@@ -84,56 +84,30 @@ def get_bitcoin_and_other_currencies():
         logger.error(f"Ошибка при получении курса валют: {e}")
         return "Ошибка при загрузке курсов. Попробуйте позже."
 
-# Функция для получения анекдотов
-def get_joke():
-    url = "https://rozdil.lviv.ua/anekdot/"
+# Функция получения предстоящих матчей CS2
+def get_upcoming_matches():
+    url = "https://hltv-api.vercel.app/api/matches"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            soup = BeautifulSoup(response.content, "html.parser")
-            jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
-            if jokes:
-                return random.choice(jokes)
+            matches = response.json()
+            upcoming_matches = []
+            for match in matches:
+                match_time = match.get("time")
+                teams = match.get("teams")
+                if match_time and teams:
+                    team_names = " vs ".join([team.get("name", "Unknown") for team in teams])
+                    upcoming_matches.append(f"{match_time}: {team_names}")
+            if upcoming_matches:
+                return "\n".join(upcoming_matches[:10])  # Показываем первые 10 матчей
             else:
-                logger.error("Не удалось найти анекдоты на странице.")
-                return "Анекдоты временно недоступны."
+                return "Нет ближайших матчей."
         else:
-            logger.error(f"Ошибка HTTP {response.status_code} при получении анекдотов.")
-            return "Ошибка при загрузке анекдотов. Попробуйте позже."
+            logger.error(f"Ошибка HTTP {response.status_code} при получении матчей.")
+            return "Ошибка при загрузке матчей. Попробуйте позже."
     except Exception as e:
-        logger.error(f"Ошибка при подключении к сайту анекдотов: {e}")
-        return "Произошла ошибка при загрузке анекдотов. Попробуйте позже."
-
-# Функция получения погоды для Киева
-def get_weather():
-    city = "Kyiv"
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            temp = round(data['main']['temp'])
-            description = data['weather'][0]['description']
-            return f"Погода в {city}: {temp}°C, {description.capitalize()}"
-        return "Не удалось получить данные о погоде."
-    except Exception as e:
-        logger.error(f"Ошибка при получении погоды: {e}")
-        return "Произошла ошибка при загрузке данных о погоде."
-
-# Функция получения случайного мема через API Imgflip
-def get_random_meme():
-    url = "https://api.imgflip.com/get_memes"
-    try:
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            memes = data.get("data", {}).get("memes", [])
-            if memes:
-                return random.choice(memes)["url"]
-        return None
-    except Exception as e:
-        logger.error(f"Ошибка при получении мема: {e}")
-        return None
+        logger.error(f"Ошибка при подключении к API HLTV: {e}")
+        return "Произошла ошибка при загрузке матчей. Попробуйте позже."
 
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
