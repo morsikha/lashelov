@@ -57,7 +57,7 @@ def check_kyiv_alert():
 # Функция отправки уведомлений в группы
 async def send_alert_to_groups(app: Application):
     try:
-        message = "🚨 Внимание! Воздушная тревога в Киеве! Будьте в укрытии!"
+        message = "🚨 Увага! летит якась какашка!"
         async with app.bot:
             updates = await app.bot.get_updates()
             for update in updates:
