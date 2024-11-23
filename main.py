@@ -6,6 +6,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 from telegram.error import TelegramError
+from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
 import schedule
@@ -42,25 +43,42 @@ def run_flask():
 def keep_alive():
     Thread(target=run_flask).start()
 
-# Функция получения данных о матчах HLTV
-def get_hltv_matches():
-    url = "https://hltv-api.vercel.app/api/matches"
+# Функция проверки тревоги в Киеве (пример API)
+def check_kyiv_alert():
     try:
-        response = requests.get(url)
+        # Замените URL на реальное API для тревог
+        response = requests.get("https://api.ukraine-alerts.example/kyiv")  # Пример URL
         if response.status_code == 200:
-            matches = response.json()
-            upcoming_matches = []
-            for match in matches:
-                event = match['event']
-                team1 = match['team1']['name']
-                team2 = match['team2']['name']
-                time = match['time']
-                upcoming_matches.append(f"{time} - {team1} vs {team2} ({event})")
-            return "\n".join(upcoming_matches) if upcoming_matches else "Нет предстоящих матчей."
-        return "Не удалось получить данные о матчах."
+            data = response.json()
+            return data.get("alert", False)  # Если тревога, возвращает True
     except Exception as e:
-        logger.error(f"Ошибка при получении данных с HLTV: {e}")
-        return "Произошла ошибка при загрузке данных о матчах."
+        logger.error(f"Ошибка при проверке тревоги: {e}")
+    return False
+
+# Функция отправки уведомлений о тревоге в группы
+async def send_alert_to_groups(app: Application):
+    try:
+        message = "🚨 Увага! Тревога в Киеве! Срочно примите меры безопасности."
+        async with app.bot:
+            updates = await app.bot.get_updates()
+            for update in updates:
+                if update.message and update.message.chat.type in ["group", "supergroup"]:
+                    chat_id = update.message.chat.id
+                    try:
+                        await app.bot.send_message(chat_id=chat_id, text=message)
+                        await app.bot.send_photo(chat_id=chat_id, photo=ALERT_IMAGE_URL)
+                        logger.info(f"Уведомление отправлено в группу с chat_id: {chat_id}")
+                    except TelegramError as e:
+                        logger.error(f"Ошибка при отправке уведомления в группу {chat_id}: {e}")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомлений: {e}")
+
+# Планировщик для проверки тревоги каждые 1 минуту
+def scheduler(app: Application):
+    def check_and_alert():
+        if check_kyiv_alert():
+            app.create_task(send_alert_to_groups(app))
+    schedule.every(1).minutes.do(check_and_alert)
 
 # Функция получения погоды для Киева
 def get_weather():
@@ -97,15 +115,27 @@ def get_random_meme():
 def get_joke():
     url = "https://rozdil.lviv.ua/anekdot/"
     try:
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
             jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
-            return random.choice(jokes) if jokes else "Анекдоты не найдены."
-        return "Ошибка при получении анекдотов."
+            if jokes:
+                return random.choice(jokes)
+            else:
+                logger.error("Не удалось найти анекдоты на странице.")
+                return "Анекдоты временно недоступны."
+        else:
+            logger.error(f"Ошибка HTTP {response.status_code} при получении анекдотов.")
+            return "Ошибка при загрузке анекдотов. Попробуйте позже."
+    except requests.exceptions.Timeout:
+        logger.error("Превышено время ожидания при подключении к сайту анекдотов.")
+        return "Превышено время ожидания. Попробуйте позже."
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Ошибка при подключении к сайту анекдотов: {e}")
+        return "Ошибка при подключении к сайту анекдотов."
     except Exception as e:
-        logger.error(f"Ошибка при получении анекдотов: {e}")
-        return "Произошла ошибка при загрузке анекдотов."
+        logger.error(f"Непредвиденная ошибка: {e}")
+        return "Произошла ошибка при загрузке анекдотов. Попробуйте позже."
 
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -116,12 +146,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "погода" in user_message:
         weather_info = get_weather()
         await context.bot.send_message(chat_id=chat_id, text=weather_info)
-        return
-
-    # Реакция на слово "гейм"
-    if "гейм" in user_message:
-        matches_info = get_hltv_matches()
-        await context.bot.send_message(chat_id=chat_id, text=matches_info)
         return
 
     # Реакция на слова "кс", "катка" и подобные
@@ -184,8 +208,12 @@ def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+    # Регистрация планировщика
+    scheduler(app)
+
     # Запуск Flask-сервера и Telegram Polling
     keep_alive()
+    Thread(target=lambda: schedule.run_pending()).start()
     app.run_polling()
 
 if __name__ == "__main__":
