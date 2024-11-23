@@ -42,39 +42,25 @@ def run_flask():
 def keep_alive():
     Thread(target=run_flask).start()
 
-# Функция проверки тревоги в Киеве (пример API)
-def check_kyiv_alert():
+# Функция получения данных о матчах HLTV
+def get_hltv_matches():
+    url = "https://hltv-api.vercel.app/api/matches"
     try:
-        # Замените URL на реальное API для тревог
-        response = requests.get("https://api.ukraine-alerts.example/kyiv")  # Пример URL
+        response = requests.get(url)
         if response.status_code == 200:
-            data = response.json()
-            return data.get("alert", False)  # Если тревога, возвращает True
+            matches = response.json()
+            upcoming_matches = []
+            for match in matches:
+                event = match['event']
+                team1 = match['team1']['name']
+                team2 = match['team2']['name']
+                time = match['time']
+                upcoming_matches.append(f"{time} - {team1} vs {team2} ({event})")
+            return "\n".join(upcoming_matches) if upcoming_matches else "Нет предстоящих матчей."
+        return "Не удалось получить данные о матчах."
     except Exception as e:
-        logger.error(f"Ошибка при проверке тревоги: {e}")
-    return False
-
-# Функция отправки уведомлений в группы
-async def send_alert_to_groups(app: Application):
-    try:
-        message = "🚨 Увага! летит якась какашка!"
-        async with app.bot:
-            updates = await app.bot.get_updates()
-            for update in updates:
-                if update.message and update.message.chat.type in ["group", "supergroup"]:
-                    chat_id = update.message.chat.id
-                    try:
-                        await app.bot.send_message(chat_id=chat_id, text=message)
-                        await app.bot.send_photo(chat_id=chat_id, photo=ALERT_IMAGE_URL)
-                        logger.info(f"Уведомление отправлено в группу с chat_id: {chat_id}")
-                    except TelegramError as e:
-                        logger.error(f"Ошибка при отправке уведомления в группу {chat_id}: {e}")
-    except Exception as e:
-        logger.error(f"Ошибка при отправке уведомлений: {e}")
-
-# Планировщик для проверки тревоги каждые 1 минуту
-def scheduler(app: Application):
-    schedule.every(1).minutes.do(lambda: app.create_task(send_alert_to_groups(app)))
+        logger.error(f"Ошибка при получении данных с HLTV: {e}")
+        return "Произошла ошибка при загрузке данных о матчах."
 
 # Функция получения погоды для Киева
 def get_weather():
@@ -130,6 +116,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "погода" in user_message:
         weather_info = get_weather()
         await context.bot.send_message(chat_id=chat_id, text=weather_info)
+        return
+
+    # Реакция на слово "гейм"
+    if "гейм" in user_message:
+        matches_info = get_hltv_matches()
+        await context.bot.send_message(chat_id=chat_id, text=matches_info)
         return
 
     # Реакция на слова "кс", "катка" и подобные
@@ -192,12 +184,8 @@ def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    # Регистрация планировщика
-    scheduler(app)
-
     # Запуск Flask-сервера и Telegram Polling
     keep_alive()
-    Thread(target=lambda: schedule.run_pending()).start()
     app.run_polling()
 
 if __name__ == "__main__":
