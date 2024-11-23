@@ -135,6 +135,31 @@ def get_random_meme():
         logger.error(f"Ошибка при получении мема: {e}")
         return None
 
+# Функция для получения предстоящих матчей через HLTV API
+def get_upcoming_matches():
+    url = "https://hltv-api.vercel.app/api/matches"
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code == 200:
+            matches = response.json()
+            upcoming_matches = []
+            for match in matches:
+                match_time = match.get("time")
+                teams = match.get("teams")
+                if match_time and teams:
+                    team_names = " vs ".join([team.get("name", "Unknown") for team in teams])
+                    upcoming_matches.append(f"{match_time}: {team_names}")
+            if upcoming_matches:
+                return "\n".join(upcoming_matches[:10])  # Показываем первые 10 матчей
+            else:
+                return "Нет ближайших матчей."
+        else:
+            logger.error(f"Ошибка HTTP {response.status_code} при получении матчей.")
+            return "Ошибка при загрузке матчей. Попробуйте позже."
+    except Exception as e:
+        logger.error(f"Ошибка при подключении к API HLTV: {e}")
+        return "Ошибка при подключении к API HLTV."
+
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
