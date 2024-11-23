@@ -9,42 +9,6 @@ from telegram.error import TelegramError
 from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
-import openai
-
-# Получение API ключа
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    logging.error("API-ключ OpenAI отсутствует. Проверьте файл секретов или переменную окружения.")
-    raise ValueError("API-ключ OpenAI не найден. Убедитесь, что он правильно настроен.")
-else:
-    logging.info(f"API-ключ успешно загружен: {OPENAI_API_KEY[:5]}...")
-
-# Установка API ключа
-openai.api_key = OPENAI_API_KEY
-
-# Функция для обращения к OpenAI
-def ask_openai(prompt):
-    try:
-        response = openai.ChatCompletion.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "Ты - умный помощник."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response['choices'][0]['message']['content'].strip()
-    except openai.error.AuthenticationError:
-        logging.error("Ошибка аутентификации. Проверьте API-ключ OpenAI.")
-        return "Ошибка аутентификации. Пожалуйста, проверьте ваш API-ключ."
-    except openai.error.RateLimitError:
-        logging.error("Превышен лимит запросов к OpenAI API.")
-        return "Превышен лимит запросов. Пожалуйста, попробуйте позже."
-    except openai.error.OpenAIError as e:
-        logging.error(f"Ошибка OpenAI API: {e}")
-        return "Произошла ошибка при работе с OpenAI API. Попробуйте позже."
-    except Exception as e:
-        logging.error(f"Непредвиденная ошибка: {e}")
-        return "Произошла неизвестная ошибка. Попробуйте позже."
 
 # Вставьте ваш токен бота
 TELEGRAM_TOKEN = "7861495333:AAGb8W-B4nFg0cM8cnmLJRCbLcTpG5yQxWI"
@@ -75,8 +39,6 @@ def keep_alive():
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """Журналирует исключения и отправляет сообщение об ошибке, если возможно."""
     logger.error(msg="Произошла ошибка Telegram", exc_info=context.error)
-    
-    # Попытка уведомить пользователя, если это возможно
     if update and isinstance(update, Update) and update.effective_chat:
         try:
             await context.bot.send_message(
@@ -119,12 +81,6 @@ def get_joke():
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text.lower()
     chat_id = update.effective_chat.id
-
-    # Реакция на упоминание "бот" с использованием OpenAI
-    if "бот" in user_message:
-        ai_response = ask_openai(f"Пользователь спросил: {user_message}")
-        await context.bot.send_message(chat_id=chat_id, text=ai_response)
-        return
 
     # Реакция на слова "кс", "катка" и подобные
     if any(keyword in user_message for keyword in ["катка", "кс", "cs", "будешь играть"]):
