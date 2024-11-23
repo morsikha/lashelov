@@ -5,7 +5,6 @@ import requests
 import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
-from telegram.error import TelegramError
 from bs4 import BeautifulSoup
 from flask import Flask
 from threading import Thread
@@ -59,7 +58,7 @@ async def send_alert_to_groups(app: Application):
                     try:
                         await app.bot.send_message(chat_id=chat_id, text=message)
                         await app.bot.send_photo(chat_id=chat_id, photo=ALERT_IMAGE_URL)
-                    except TelegramError as e:
+                    except Exception as e:
                         logger.error(f"Ошибка отправки в группу {chat_id}: {e}")
     except Exception as e:
         logger.error(f"Ошибка при отправке уведомлений: {e}")
