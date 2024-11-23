@@ -43,37 +43,97 @@ def run_flask():
 def keep_alive():
     Thread(target=run_flask).start()
 
-# Функция получения предстоящих матчей через HLTV Unofficial API
-def get_upcoming_matches():
-    url = "https://hltv-api.vercel.app/api/matches"
+# Функция для планировщика
+def scheduler(app):
+    schedule.every(1).minutes.do(lambda: app.create_task(send_alert_to_groups(app)))
+
+# Функция для отправки тревоги в Telegram-группы
+async def send_alert_to_groups(app: Application):
+    try:
+        message = "🚨 Увага! летит якась какашка!"
+        async with app.bot:
+            updates = await app.bot.get_updates()
+            for update in updates:
+                if update.message and update.message.chat.type in ["group", "supergroup"]:
+                    chat_id = update.message.chat.id
+                    try:
+                        await app.bot.send_message(chat_id=chat_id, text=message)
+                        await app.bot.send_photo(chat_id=chat_id, photo=ALERT_IMAGE_URL)
+                        logger.info(f"Уведомление отправлено в группу с chat_id: {chat_id}")
+                    except TelegramError as e:
+                        logger.error(f"Ошибка при отправке уведомления в группу {chat_id}: {e}")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке уведомлений: {e}")
+
+# Функция получения курса биткоина и других валют
+def get_bitcoin_and_other_currencies():
+    try:
+        btc_url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+        btc_response = requests.get(btc_url).json()
+        btc_price = btc_response.get("bitcoin", {}).get("usd", "Неизвестно")
+
+        currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
+        currencies_response = requests.get(currencies_url).json()
+
+        currencies_message = ""
+        for currency, details in currencies_response.items():
+            currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
+
+        return f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
+    except Exception as e:
+        logger.error(f"Ошибка при получении курса валют: {e}")
+        return "Ошибка при загрузке курсов. Попробуйте позже."
+
+# Функция для получения анекдотов
+def get_joke():
+    url = "https://rozdil.lviv.ua/anekdot/"
     try:
         response = requests.get(url, timeout=10)
         if response.status_code == 200:
-            data = response.json()
-            matches = data.get("matches", [])
-            if matches:
-                upcoming_matches = []
-                for match in matches[:5]:  # Получаем первые 5 матчей
-                    team1 = match.get("team1", {}).get("name", "Неизвестно")
-                    team2 = match.get("team2", {}).get("name", "Неизвестно")
-                    time = match.get("time", "Время неизвестно")
-                    tournament = match.get("event", {}).get("name", "Турнир неизвестен")
-                    upcoming_matches.append(f"{team1} vs {team2}\nТурнир: {tournament}\nВремя: {time}")
-                return "\n\n".join(upcoming_matches)
+            soup = BeautifulSoup(response.content, "html.parser")
+            jokes = [joke.get_text().strip() for joke in soup.find_all("a", class_="hoveranek black")]
+            if jokes:
+                return random.choice(jokes)
             else:
-                return "Предстоящие матчи не найдены."
+                logger.error("Не удалось найти анекдоты на странице.")
+                return "Анекдоты временно недоступны."
         else:
-            logger.error(f"Ошибка HTTP {response.status_code} при получении матчей.")
-            return "Ошибка при загрузке матчей. Попробуйте позже."
-    except requests.exceptions.Timeout:
-        logger.error("Превышено время ожидания при подключении к HLTV API.")
-        return "Превышено время ожидания. Попробуйте позже."
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Ошибка при подключении к HLTV API: {e}")
-        return "Ошибка при подключении к HLTV API."
+            logger.error(f"Ошибка HTTP {response.status_code} при получении анекдотов.")
+            return "Ошибка при загрузке анекдотов. Попробуйте позже."
     except Exception as e:
-        logger.error(f"Непредвиденная ошибка: {e}")
-        return "Произошла ошибка при загрузке матчей. Попробуйте позже."
+        logger.error(f"Ошибка при подключении к сайту анекдотов: {e}")
+        return "Произошла ошибка при загрузке анекдотов. Попробуйте позже."
+
+# Функция получения погоды для Киева
+def get_weather():
+    city = "Kyiv"
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=ru"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            temp = round(data['main']['temp'])
+            description = data['weather'][0]['description']
+            return f"Погода в {city}: {temp}°C, {description.capitalize()}"
+        return "Не удалось получить данные о погоде."
+    except Exception as e:
+        logger.error(f"Ошибка при получении погоды: {e}")
+        return "Произошла ошибка при загрузке данных о погоде."
+
+# Функция получения случайного мема через API Imgflip
+def get_random_meme():
+    url = "https://api.imgflip.com/get_memes"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            memes = data.get("data", {}).get("memes", [])
+            if memes:
+                return random.choice(memes)["url"]
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка при получении мема: {e}")
+        return None
 
 # Основной обработчик сообщений
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,31 +158,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=random.choice(phrases))
         return
 
-    # Команда "курс"
-    if "курс" in user_message:
-        rates = {fish: round(random.uniform(10, 1000), 2) for fish in ["карась", "лещ", "плотва", "тунец", "акула"]}
-        rates_message = "\n".join([f"{fish.capitalize()}: {rate} грн" for fish, rate in rates.items()])
-        await context.bot.send_message(chat_id=chat_id, text=f"🐟 Текущие курсы рыбешки:\n\n{rates_message}")
+    # Команда "гейм"
+    if "гейм" in user_message:
+        matches_info = get_upcoming_matches()
+        await context.bot.send_message(chat_id=chat_id, text=f"🎮 Предстоящие матчи по CS2:\n\n{matches_info}")
         return
 
     # Команда "биток"
-    if "биток" in user_message:
-        url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
-        response = requests.get(url)
-        if response.status_code == 200:
-            data = response.json()
-            btc_price = data.get("bitcoin", {}).get("usd", "Неизвестно")
-            currencies_url = "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,ripple,cardano,solana,polkadot&vs_currencies=usd"
-            currencies_response = requests.get(currencies_url)
-            currencies_message = ""
-            if currencies_response.status_code == 200:
-                currencies_data = currencies_response.json()
-                for currency, details in currencies_data.items():
-                    currencies_message += f"{currency.capitalize()}: ${details['usd']}\n"
-            message = f"💰 Курс биткоина: ${btc_price} USD\n\n🌍 Другие курсы:\n{currencies_message}"
-            await context.bot.send_message(chat_id=chat_id, text=message)
-        else:
-            await context.bot.send_message(chat_id=chat_id, text="Не удалось получить курс биткоина.")
+    if "биток" in user_message or "курс" in user_message:
+        currency_info = get_bitcoin_and_other_currencies()
+        await context.bot.send_message(chat_id=chat_id, text=currency_info)
         return
 
     # Команда "анекдот"
@@ -138,12 +183,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await context.bot.send_photo(chat_id=chat_id, photo=meme_url)
         else:
             await context.bot.send_message(chat_id=chat_id, text="Не удалось загрузить мем.")
-        return
-
-    # Команда "гейм"
-    if "гейм" in user_message:
-        matches_info = get_upcoming_matches()
-        await context.bot.send_message(chat_id=chat_id, text=f"🎮 Предстоящие матчи по CS2:\n\n{matches_info}")
         return
 
 # Запуск бота
